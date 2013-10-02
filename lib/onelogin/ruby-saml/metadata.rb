@@ -17,13 +17,23 @@ module Onelogin
         }
         sp_sso = root.add_element "md:SPSSODescriptor", {
             "protocolSupportEnumeration" => "urn:oasis:names:tc:SAML:2.0:protocol",
-            # Metadata request need not be signed (as we don't publish our cert)
-            "AuthnRequestsSigned" => false,
+            "AuthnRequestsSigned" => !settings.signing_certificate.nil?,
             # However we would like assertions signed if idp_cert_fingerprint or idp_cert is set
             "WantAssertionsSigned" => (!settings.idp_cert_fingerprint.nil? || !settings.idp_cert.nil?)
         }
         if settings.issuer != nil
           root.attributes["entityID"] = settings.issuer
+        end
+        if settings.signing_certificate
+          key_description = sp_sso.add_element "md:KeyDescriptor", {
+            "use" => "signing"
+          }
+          key_info = key_description.add_element "md:KeyInfo", {
+            "xmlns" => "http://www.w3.org/2000/09/xmldsig#"
+          }
+          x_509_data = key_info.add_element "md:X509Data"
+          x_509_certificate = x_509_data.add_element "md:X509Certificate"
+          x_509_certificate.text = settings.signing_certificate.strip
         end
         if settings.assertion_consumer_logout_service_url != nil
           sp_sso.add_element "md:SingleLogoutService", {
